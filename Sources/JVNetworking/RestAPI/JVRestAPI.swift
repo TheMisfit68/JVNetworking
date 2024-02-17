@@ -9,9 +9,10 @@ import Foundation
 import OSLog
 import JVSwiftCore
 
+/// A class to handle REST API requests
 @available(macOS 12.0.0, *)
-public class RestAPI<E:StringRepresentableEnum, P:StringRepresentableEnum>{
-	let logger = Logger(subsystem: "be.oneclick.JVSwift", category: "JVRestApi")
+public class RestAPI{
+	let logger = Logger(subsystem: "be.oneclick.JVNetworking", category: "JVRestApi")
 	
 	
 	public enum Method:String {
@@ -21,179 +22,211 @@ public class RestAPI<E:StringRepresentableEnum, P:StringRepresentableEnum>{
 		case DELETE
 	}
 	
-	public enum Error: Swift.Error {
-		case statusError
-		case decodingError
-		case timeoutError
-	}
-	
 	public var baseURL:String
-	public var endpointParameters:[E:[P]]
-	public var baseValues:[P:String]
 	
-	public init(baseURL:String, endpointParameters:[E:[P]], baseValues:[P:String] = [:]){
+	public init(baseURL:String){
 		
 		self.baseURL = baseURL
-		self.endpointParameters = endpointParameters
-		self.baseValues = baseValues
 		
 	}
 	
+	/// A method to decode a response from a REST API
 	public func decode<T:Decodable>(method:RestAPI.Method = .GET,
 									using decoder:JSONDecoder = newJSONDecoder(),
-									command:E, parameters:[P:String],
+									command:any StringRepresentableEnum,
+									parameters:HTTPFormEncodable? = nil,
+									includingBaseParameters baseParameters: HTTPFormEncodable? = nil,
 									timeout: TimeInterval = 10) async throws -> T?{
 		
 		switch method{
 			case .GET:
-				guard let data = try? await get(command: command, parameters: parameters, timeout:timeout) else { throw Error.statusError }
-				guard let decodedData = try? decoder.decode(T.self, from: data) else { throw Error.decodingError}
+				guard let data = try? await get(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout) else {
+					throw URLError(.badServerResponse)
+				}
+				guard let decodedData = try? decoder.decode(T.self, from: data) else {
+					throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
+				}
 				return decodedData
 			case .POST:
-				guard let data = try? await post(command: command, parameters: parameters) else { throw Error.statusError }
-				print("🐞\t\(String(decoding: data, as: UTF8.self))")
-				guard let decodedData = try? decoder.decode(T.self, from: data) else { throw Error.decodingError}
+				guard let data = try? await post(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout) else {
+					throw URLError(.badServerResponse)
+				}
+				guard let decodedData = try? decoder.decode(T.self, from: data) else {
+					throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
+				}
 				return decodedData
 			default:
-#warning("TODO") // TODO: - Complete RestAPI
+				// TODO: - Complete RestAPI
 				return nil
 		}
 		
 	}
 	
-	public func get(command:E,
-					parameters:[P:String],
+	
+	public func get(command:any StringRepresentableEnum,
+					parameters:HTTPFormEncodable? = nil,
+					includingBaseParameters baseParameters: HTTPFormEncodable? = nil,
 					timeout: TimeInterval = 10) async throws -> Data?{
 		
-		let parameters = baseValues.merging(parameters) {$1}
-		let form = HTTPForm(parametersToInclude: endpointParameters[command] ?? [], currentParameters: parameters)
+		guard var urlComponents = URLComponents(string: self.baseURL) else { throw URLError(.badURL) }
+		urlComponents.path += command.rawValue
+		urlComponents.queryItems = HTTPForm(baseParameters: baseParameters, parameters: parameters).asQueryItems()
+		guard let url = urlComponents.url else { throw URLError(.badURL) }
 		
-		var urlComps = URLComponents(string: baseURL+command.stringValue)
-		urlComps?.queryItems = form.urlQueryItems
-		let url:URL? = urlComps?.url
-		
-		logger.info(
-  """
-  ⤴️\t[GET] \(self.baseURL, privacy:.public)\(command.rawValue, privacy:.public)
-  \(form.description, privacy:.public)
-  """
-		)
-		
-		var request:URLRequest! = URLRequest(url: url!)
+		var request:URLRequest = URLRequest(url: url)
 		request.httpMethod = Method.GET.rawValue
 		request.timeoutInterval = timeout
 		
+		logRequest(request)
+		
 		let (data, response) = try await URLSession.shared.data(for: request)
 		let httpStatusCode = (response as? HTTPURLResponse)?.statusCode ?? 500 // 500 Internal Server Error in case of nil
+		guard (200...299).contains(httpStatusCode) else { throw URLError(.badServerResponse) }
 		
-		switch httpStatusCode {
-			case 200...299:
-				// Successful response
-				let dataString = String(decoding: data, as: UTF8.self)
-				logger.info("⤵️\t[GET] Received data for \(command.stringValue, privacy: .public):\n\(dataString, privacy: .public)")
-				return data
-			case 408:
-				// Timeout error
-				throw Error.timeoutError
-			default:
-				// Other errors
-				throw Error.statusError
-		}
+		logResponse(for: .GET, command: command, data: data)
+		return data
 		
 	}
 	
-	public func post(command:E,
-					 parameters:[P:String],
+	public func post(command:any StringRepresentableEnum,
+					 parameters:HTTPFormEncodable? = nil,
+					 includingBaseParameters baseParameters: HTTPFormEncodable? = nil,
 					 timeout: TimeInterval = 10) async throws -> Data?{
 		
-		let parameters = baseValues.merging(parameters) {$1}
-		let form = HTTPForm(parametersToInclude: endpointParameters[command] ?? [], currentParameters: parameters)
+		guard var urlComponents = URLComponents(string: self.baseURL) else { throw URLError(.badURL) }
+		urlComponents.path += command.rawValue
+		urlComponents.queryItems = nil
+		guard let url = urlComponents.url else { throw URLError(.badURL) }
 		
-		let  url = URL(string:baseURL+command.stringValue)
-		
-		logger.info(
-  """
-  ⤴️\t[POST] \(self.baseURL, privacy:.public)\(command.rawValue, privacy:.public)
-  \(form.description, privacy:.public)
-  """
-		)
-		
-		var request = URLRequest(url: url!)
+		var request = URLRequest(url: url)
 		request.httpMethod = Method.POST.rawValue
 		request.timeoutInterval = timeout
-		request.allHTTPHeaderFields = ["Content-Type" : "application/x-www-form-urlencoded"]
-		request.httpBody = form.composeBody(type: .FormEncoded)
+		request.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
+		
+		if let body = HTTPForm(baseParameters: baseParameters, parameters: parameters).urlEncoded(){
+			request.httpBody = body.data
+			request.setValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
+		}
+		
+		logRequest(request)
 		
 		let (data, response) = try await URLSession.shared.data(for: request)
 		let httpStatusCode = (response as? HTTPURLResponse)?.statusCode ?? 500 // 500 Internal Server Error in case of nil
+		guard (200...299).contains(httpStatusCode) else { throw URLError(.badServerResponse) }
 		
-		switch httpStatusCode {
-			case 200...299:
-				// Successful response
-				let dataString = String(decoding: data, as: UTF8.self)
-				logger.info("⤵️\t[POST] Received data for \(command.stringValue, privacy: .public):\n\(dataString, privacy: .public)")
-				return data
-			case 408:
-				// Timeout error
-				throw Error.timeoutError
-			default:
-				// Other errors
-				throw Error.statusError
+		logResponse(for: .POST, command: command, data: data)
+		return data
+	}
+	
+	private func logRequest(_ request: URLRequest) {
+		
+		var logMessage = ""
+		
+		if let method = request.httpMethod, let url = request.url {
+			logMessage += "⤴️\t[\(method)] \(url)\n"
 		}
 		
+		if let headers = request.allHTTPHeaderFields {
+			logMessage += "__________________________________________________________________________________________\n"
+			
+			for (key, value) in headers {
+				logMessage += "\(key): \(value)\n"
+			}
+			logMessage += "__________________________________________________________________________________________\n"
+		}
+		
+		if let bodyData = request.httpBody{
+			var bodyString = String(data: bodyData, encoding: .utf8)
+			if let contentType = request.value(forHTTPHeaderField: "Content-Type"), contentType.contains("application/x-www-form-urlencoded"){
+				bodyString = bodyString?.replacingOccurrences(of: "&", with: "\n")
+			}
+			logMessage += "\(bodyString ?? "")"
+		}
+		
+		logger.info("\(logMessage)")
+	}
+	
+	private func logResponse(for method: RestAPI.Method, command: any StringRepresentableEnum, data: Data?) {
+		guard let data = data, let dataString = String(data: data, encoding: .utf8) else {
+			logger.debug("⤵️\t[\(method.rawValue)] No data received for \(command.stringValue, privacy: .public)")
+			return
+		}
+		
+		logger.debug("⤵️\t[\(method.rawValue)] Received data for \(command.stringValue, privacy: .public):\n\(dataString, privacy: .public)")
 	}
 	
 }
 
-public struct HTTPForm<P:StringRepresentableEnum>{
+public protocol HTTPFormEncodable: Encodable {
+	// Protocol extension for Encodable
+	func asQueryItems() throws -> [URLQueryItem]
+}
+
+public extension HTTPFormEncodable {
 	
-	private var stringRepresentations:[(String, String)]
-	private var parametersAndValues:[String]
-	public var urlQueryItems:[URLQueryItem]
-	
-	public var description:String{
-		parametersAndValues.joined(separator: "\n")
-	}
-	
-	public enum HTTPbodyType{
-		case Json
-		case FormEncoded
-	}
-	
-	public init(parametersToInclude:[P], currentParameters:[P:String]){
+	func asQueryItems() throws -> [URLQueryItem] {
+		let encoder = JSONEncoder()
+		let data = try encoder.encode(self)
 		
-		let filteredParameters = currentParameters.filter   {(parameterName, parameterValue) in parametersToInclude.contains(parameterName)}
-		
-		self.stringRepresentations = filteredParameters.map  {(parameterName, parameterValue) in (parameterName.stringValue, Self.Encode(parameterValue))}
-		self.parametersAndValues = stringRepresentations.map {parameterName, parameterValue in  "\(parameterName)=\(parameterValue)" }
-		
-		self.urlQueryItems = filteredParameters.map{ (parameterName, parameterValue) in URLQueryItem(name: parameterName.stringValue, value: parameterValue)}
-	}
-	
-	public static func Encode(_ parameter:String)->String{
-		
-		var encodedParameter = parameter
-		encodedParameter = encodedParameter.replacingOccurrences(of: ",", with: "%2C")
-		encodedParameter = encodedParameter.replacingOccurrences(of: " ", with: "%20")
-		encodedParameter = encodedParameter.replacingOccurrences(of: "/", with: "%2F")
-		encodedParameter = encodedParameter.replacingOccurrences(of: "+", with: "%2B")
-		encodedParameter = encodedParameter.replacingOccurrences(of: "=", with: "%3D")
-		
-		return encodedParameter
-	}
-	
-	
-	public func composeBody(type:HTTPbodyType = .Json)->Data?{
-		
-		switch type {
-			case .Json:
-				return try? JSONSerialization.data(withJSONObject: stringRepresentations, options: .prettyPrinted)
-			case .FormEncoded:
-				return parametersAndValues.joined(separator: "&").data(using: .utf8)
+		guard let dictionary = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
+			throw EncodingError.invalidValue(self, .init(codingPath: [], debugDescription: "Failed to convert encoded data to dictionary"))
 		}
 		
+		return dictionary.map { URLQueryItem(name: $0.key, value: String(describing: $0.value)) }
 	}
 	
 }
 
-
+struct HTTPForm {
+	
+	let baseParameters: HTTPFormEncodable?
+	let parameters: HTTPFormEncodable?
+	
+	// Properties as a one-dimensional array of URLQueryItem
+	func asQueryItems() -> [URLQueryItem] {
+		var queryItems: [URLQueryItem] = []
+		
+		if let baseItems = try? baseParameters?.asQueryItems() {
+			queryItems += baseItems
+		}
+		
+		if let remainingItems = try? parameters?.asQueryItems() {
+			queryItems += remainingItems
+		}
+		
+		return queryItems
+	}
+	
+	// Properties as single JSON object
+	func asJSON() -> (Data, contentLength:String)? {
+		
+		let queryItems = self.asQueryItems()
+		guard let jsonData = try? JSONSerialization.data(withJSONObject: queryItems, options: [])else{return nil}
+		return (jsonData, "\(jsonData.count)")
+	}
+	
+	// Properties as form URL-encoded Form
+	private func percentEncode(_ value: String) -> String {
+		
+		let charactersToEncode = CharacterSet(charactersIn: ", /+=@")
+		let percentEncodedValue = value.addingPercentEncoding(withAllowedCharacters: charactersToEncode.inverted) ?? ""
+		
+		return percentEncodedValue
+		
+	}
+	
+	
+	func urlEncoded() -> (data:Data, contentLength:String)? {
+		let queryItems = self.asQueryItems()
+		
+		// Construct the query string manually with original key case and URL-encoded values
+		let queryString = queryItems.map {
+			"\($0.name)=\(percentEncode($0.value ?? "") )"
+		}.joined(separator: "&")
+		
+		guard let body = queryString.data(using: .utf8)else{return nil}
+		return (data:body, contentLength:"\(body.count)")
+		
+	}
+	
+}
