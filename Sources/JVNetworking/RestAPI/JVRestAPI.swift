@@ -34,30 +34,29 @@ public class RestAPI{
 	/// The object to decode should also be encodable so it can be printed out as a JSON encoded string,
 	/// hence the conformation to Codable
 	public func decode<T:Codable>(method:RestAPI.Method = .GET,
-								  using decoder:JSONDecoder = newJSONDecoder(),
 								  command:any StringRepresentableEnum,
 								  parameters:HTTPFormEncodable? = nil,
 								  includingBaseParameters baseParameters: HTTPFormEncodable? = nil,
 								  timeout: TimeInterval = 10) async throws -> T?{
 		
-		var codableObject:T?
+		var decodedObject:T?
 		switch method{
 			case .GET:
 				guard let data = try? await get(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout) else {
 					throw URLError(.badServerResponse)
 				}
-				guard let decodedData = try? decoder.decode(T.self, from: data) else {
+				guard let objectFromData = T(from: data, dateDecodingStrategy: .iso8601)  else {
 					throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
 				}
-				codableObject = decodedData
+				decodedObject = objectFromData
 			case .POST:
 				guard let data = try? await post(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout) else {
 					throw URLError(.badServerResponse)
 				}
-				guard let decodedData = try? decoder.decode(T.self, from: data) else {
+				guard let objectFromData = T(from: data, dateDecodingStrategy: .iso8601)  else {
 					throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
 				}
-				codableObject = decodedData
+				decodedObject = objectFromData
 			default:
 				// TODO: - Complete RestAPI
 				return nil
@@ -66,10 +65,10 @@ public class RestAPI{
 		logger.debug(
 """
 ⤵️\t[\(method.rawValue)] Received data for \(command.stringValue, privacy: .public):
-\(codableObject.description, privacy: .public)
+\(decodedObject.debugDescription, privacy: .public)
 """
 		)
-		return codableObject
+		return decodedObject
 		
 	}
 	
