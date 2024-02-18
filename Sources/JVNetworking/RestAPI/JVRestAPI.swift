@@ -31,13 +31,16 @@ public class RestAPI{
 	}
 	
 	/// A method to decode a response from a REST API
-	public func decode<T:Decodable>(method:RestAPI.Method = .GET,
-									using decoder:JSONDecoder = newJSONDecoder(),
-									command:any StringRepresentableEnum,
-									parameters:HTTPFormEncodable? = nil,
-									includingBaseParameters baseParameters: HTTPFormEncodable? = nil,
-									timeout: TimeInterval = 10) async throws -> T?{
+	/// The object to decode should also be encodable so it can be printed out as a JSON encoded string,
+	/// hence the conformation to Codable
+	public func decode<T:Codable>(method:RestAPI.Method = .GET,
+								  using decoder:JSONDecoder = newJSONDecoder(),
+								  command:any StringRepresentableEnum,
+								  parameters:HTTPFormEncodable? = nil,
+								  includingBaseParameters baseParameters: HTTPFormEncodable? = nil,
+								  timeout: TimeInterval = 10) async throws -> T?{
 		
+		var codableObject:T?
 		switch method{
 			case .GET:
 				guard let data = try? await get(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout) else {
@@ -46,7 +49,7 @@ public class RestAPI{
 				guard let decodedData = try? decoder.decode(T.self, from: data) else {
 					throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
 				}
-				return decodedData
+				codableObject = decodedData
 			case .POST:
 				guard let data = try? await post(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout) else {
 					throw URLError(.badServerResponse)
@@ -54,11 +57,19 @@ public class RestAPI{
 				guard let decodedData = try? decoder.decode(T.self, from: data) else {
 					throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
 				}
-				return decodedData
+				codableObject = decodedData
 			default:
 				// TODO: - Complete RestAPI
 				return nil
 		}
+		
+		logger.debug(
+"""
+⤵️\t[\(method.rawValue)] Received data for \(command.stringValue, privacy: .public):
+\(codableObject.description, privacy: .public)
+"""
+		)
+		return codableObject
 		
 	}
 	
@@ -77,13 +88,15 @@ public class RestAPI{
 		request.httpMethod = Method.GET.rawValue
 		request.timeoutInterval = timeout
 		
-		logRequest(request)
+		logger.info("\(request.description)")
 		
 		let (data, response) = try await URLSession.shared.data(for: request)
 		let httpStatusCode = (response as? HTTPURLResponse)?.statusCode ?? 500 // 500 Internal Server Error in case of nil
-		guard (200...299).contains(httpStatusCode) else { throw URLError(.badServerResponse) }
+		guard (200...299).contains(httpStatusCode) else {
+			logger.debug("⤵️\t[\(RestAPI.Method.GET.rawValue)] No data received for \(command.stringValue, privacy: .public)")
+			throw URLError(.badServerResponse)
+		}
 		
-		logResponse(for: .GET, command: command, data: data)
 		return data
 		
 	}
@@ -108,51 +121,16 @@ public class RestAPI{
 			request.setValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
 		}
 		
-		logRequest(request)
+		logger.info("\(request.description)")
 		
 		let (data, response) = try await URLSession.shared.data(for: request)
 		let httpStatusCode = (response as? HTTPURLResponse)?.statusCode ?? 500 // 500 Internal Server Error in case of nil
-		guard (200...299).contains(httpStatusCode) else { throw URLError(.badServerResponse) }
+		guard (200...299).contains(httpStatusCode) else {
+			logger.debug("⤵️\t[\(RestAPI.Method.POST.rawValue)] No data received for \(command.stringValue, privacy: .public)")
+			throw URLError(.badServerResponse)
+		}
 		
-		logResponse(for: .POST, command: command, data: data)
 		return data
-	}
-	
-	private func logRequest(_ request: URLRequest) {
-		
-		var logMessage = ""
-		
-		if let method = request.httpMethod, let url = request.url {
-			logMessage += "⤴️\t[\(method)] \(url)\n"
-		}
-		
-		if let headers = request.allHTTPHeaderFields {
-			logMessage += "__________________________________________________________________________________________\n"
-			
-			for (key, value) in headers {
-				logMessage += "\(key): \(value)\n"
-			}
-			logMessage += "__________________________________________________________________________________________\n"
-		}
-		
-		if let bodyData = request.httpBody{
-			var bodyString = String(data: bodyData, encoding: .utf8)
-			if let contentType = request.value(forHTTPHeaderField: "Content-Type"), contentType.contains("application/x-www-form-urlencoded"){
-				bodyString = bodyString?.replacingOccurrences(of: "&", with: "\n")
-			}
-			logMessage += "\(bodyString ?? "")"
-		}
-		
-		logger.info("\(logMessage)")
-	}
-	
-	private func logResponse(for method: RestAPI.Method, command: any StringRepresentableEnum, data: Data?) {
-		guard let data = data, let dataString = String(data: data, encoding: .utf8) else {
-			logger.debug("⤵️\t[\(method.rawValue)] No data received for \(command.stringValue, privacy: .public)")
-			return
-		}
-		
-		logger.debug("⤵️\t[\(method.rawValue)] Received data for \(command.stringValue, privacy: .public):\n\(dataString, privacy: .public)")
 	}
 	
 }
