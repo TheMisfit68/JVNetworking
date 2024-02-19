@@ -37,39 +37,35 @@ public class RestAPI{
 								  command:any StringRepresentableEnum,
 								  parameters:HTTPFormEncodable? = nil,
 								  includingBaseParameters baseParameters: HTTPFormEncodable? = nil,
+								  dateDecodingStrategy: JSONDecoder.DateDecodingStrategy = .deferredToDate,
 								  timeout: TimeInterval = 10) async throws -> T?{
-		
-		var decodedObject:T?
+		var data:Data?
 		switch method{
 			case .GET:
-				guard let data = try? await get(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout) else {
-					throw URLError(.badServerResponse)
-				}
-				guard let objectFromData = T(from: data, dateDecodingStrategy: .iso8601)  else {
-					throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
-				}
-				decodedObject = objectFromData
+				data = try? await get(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout)
 			case .POST:
-				guard let data = try? await post(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout) else {
-					throw URLError(.badServerResponse)
-				}
-				guard let objectFromData = T(from: data, dateDecodingStrategy: .iso8601)  else {
-					throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
-				}
-				decodedObject = objectFromData
+				data = try? await post(command: command, parameters: parameters, includingBaseParameters: baseParameters, timeout:timeout)
 			default:
 				// TODO: - Complete RestAPI
-				return nil
+				data = nil
+		}
+		
+		guard (data != nil) else { throw URLError(.badServerResponse) }
+		let decodedObject:T? = T(from: data!, dateDecodingStrategy: dateDecodingStrategy)
+		
+		guard (decodedObject != nil) else {
+			throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
 		}
 		
 		logger.debug(
 """
 ⤵️\t[\(method.rawValue)] Received data for \(command.stringValue, privacy: .public):
-\(decodedObject.debugDescription, privacy: .public)
+\(decodedObject!.debugDescription, privacy: .public)
 """
 		)
-		return decodedObject
 		
+		
+		return decodedObject
 	}
 	
 	
@@ -80,7 +76,7 @@ public class RestAPI{
 		
 		guard var urlComponents = URLComponents(string: self.baseURL) else { throw URLError(.badURL) }
 		urlComponents.path += command.rawValue
-		urlComponents.queryItems = HTTPForm(baseParameters: baseParameters, parameters: parameters).asQueryItems()
+		urlComponents.queryItems = HTTPForm(baseParameters: baseParameters, parameters: parameters).queryItems
 		guard let url = urlComponents.url else { throw URLError(.badURL) }
 		
 		var request:URLRequest = URLRequest(url: url)
@@ -115,7 +111,7 @@ public class RestAPI{
 		request.timeoutInterval = timeout
 		request.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
 		
-		if let body = HTTPForm(baseParameters: baseParameters, parameters: parameters).urlEncoded(){
+		if let body = HTTPForm(baseParameters: baseParameters, parameters: parameters).urlEncodedForm{
 			request.httpBody = body.data
 			request.setValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
 		}
@@ -135,21 +131,36 @@ public class RestAPI{
 }
 
 public protocol HTTPFormEncodable: Encodable {
-	// Protocol extension for Encodable
+	
+	func asDictionary() throws-> [String:String]
+	
 	func asQueryItems() throws -> [URLQueryItem]
+	
 }
 
 public extension HTTPFormEncodable {
 	
-	func asQueryItems() throws -> [URLQueryItem] {
-		let encoder = JSONEncoder()
-		let data = try encoder.encode(self)
+	/// Convert a Codable into a Dictionary of Key:Value-pairs
+	func asDictionary() throws-> [String:String] {
+		let toDataEncoder = JSONEncoder()
 		
-		guard let dictionary = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
+		// Use a JSON-data object as an intermediate variable to decode self to another type
+		let jsonData = try toDataEncoder.encode(self)
+		
+		let fromDataDecoder = JSONDecoder()
+		guard let dictionary = try? fromDataDecoder.decode([String: String].self, from: jsonData) else {
 			throw EncodingError.invalidValue(self, .init(codingPath: [], debugDescription: "Failed to convert encoded data to dictionary"))
 		}
 		
-		return dictionary.map { URLQueryItem(name: $0.key, value: String(describing: $0.value)) }
+		return dictionary
+		
+	}
+	
+	/// Convert a Codable into an [URLQueryItem]
+	func asQueryItems() throws -> [URLQueryItem] {
+	
+		return try self.asDictionary().map { URLQueryItem(name: $0.key, value: $0.value) }
+		
 	}
 	
 }
@@ -160,7 +171,7 @@ struct HTTPForm {
 	let parameters: HTTPFormEncodable?
 	
 	// Properties as a one-dimensional array of URLQueryItem
-	func asQueryItems() -> [URLQueryItem] {
+	var queryItems:[URLQueryItem] {
 		var queryItems: [URLQueryItem] = []
 		
 		if let baseItems = try? baseParameters?.asQueryItems() {
@@ -174,35 +185,54 @@ struct HTTPForm {
 		return queryItems
 	}
 	
-	// Properties as single JSON object
-	func asJSON() -> (Data, contentLength:String)? {
+	// Properties as a JSON-encoded form
+	var jsonEncodedForm:(data:Data, contentLength:String)? {
+		var mergedDictionary = [String: String]()
 		
-		let queryItems = self.asQueryItems()
-		guard let jsonData = try? JSONSerialization.data(withJSONObject: queryItems, options: [])else{return nil}
-		return (jsonData, "\(jsonData.count)")
+		// Merge baseParameters with percent encoding
+		if let baseParams = try? baseParameters?.asDictionary() {
+			for (key, value) in baseParams {
+				let percentEncodedValue = percentEncode(value)
+				mergedDictionary[key] = percentEncodedValue
+			}
+		}
+		
+		// Merge parameters with percent encoding
+		if let params = try? parameters?.asDictionary() {
+			for (key, value) in params {
+				let percentEncodedValue = percentEncode(value)
+				mergedDictionary[key] = percentEncodedValue
+			}
+		}
+		
+		let jsonEncoder = JSONEncoder()
+		guard let body = try? jsonEncoder.encode(mergedDictionary) else {return nil}
+		
+		return (data:body, contentLength:"\(body.count)")
 	}
 	
-	// Properties as form URL-encoded Form
-	private func percentEncode(_ value: String) -> String {
-		
-		let charactersToEncode = CharacterSet(charactersIn: ", /+=@")
-		let percentEncodedValue = value.addingPercentEncoding(withAllowedCharacters: charactersToEncode.inverted) ?? ""
-		
-		return percentEncodedValue
-		
-	}
 	
-	
-	func urlEncoded() -> (data:Data, contentLength:String)? {
-		let queryItems = self.asQueryItems()
+	// Properties as URL-encoded Form
+	var urlEncodedForm:(data:Data, contentLength:String)? {
+		let queryItems = self.queryItems
 		
 		// Construct the query string manually with original key case and URL-encoded values
 		let queryString = queryItems.map {
 			"\($0.name)=\(percentEncode($0.value ?? "") )"
 		}.joined(separator: "&")
 		
-		guard let body = queryString.data(using: .utf8)else{return nil}
+		guard let body = queryString.data(using: .utf8) else {return nil}
 		return (data:body, contentLength:"\(body.count)")
+		
+	}
+	
+	// MARK: - Helper functions
+	private func percentEncode(_ value: String) -> String {
+		
+		let charactersToEncode = CharacterSet(charactersIn: ", /+=@")
+		let percentEncodedValue = value.addingPercentEncoding(withAllowedCharacters: charactersToEncode.inverted) ?? ""
+		
+		return percentEncodedValue
 		
 	}
 	
