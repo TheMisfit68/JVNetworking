@@ -6,10 +6,13 @@
 //
 
 import Foundation
+import JVSwiftCore
 
-extension URLRequest{
+extension URLRequest:CustomDescriptible {}
+
+public extension CustomDescriptible where Self == URLRequest{
 	
-	public var description:String{
+	 var customDescription:String{
 		
 		var logMessage = ""
 		
