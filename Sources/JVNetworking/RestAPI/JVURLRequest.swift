@@ -10,9 +10,14 @@ import JVSwiftCore
 
 extension URLRequest:CustomDescriptible {}
 
+/// Allow URLrequest to be described in a custom way for debugging purposes
 public extension CustomDescriptible where Self == URLRequest{
 	
-	 var customDescription:String{
+	var customDescription:String{
+		return self.stringValue ?? ""
+	}
+		 
+	var stringValue:String?{
 		
 		var logMessage = ""
 		

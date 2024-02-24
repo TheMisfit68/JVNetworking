@@ -6,5 +6,6 @@
 //
 
 import Foundation
+import JVSwiftCore
 
 public typealias IPaddres = String

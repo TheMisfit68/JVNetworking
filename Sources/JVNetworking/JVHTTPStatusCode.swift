@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import JVSwiftCore
 
 public enum HTTPStatusCode: Int {
 	case ok = 200

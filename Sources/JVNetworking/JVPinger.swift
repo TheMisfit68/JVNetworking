@@ -9,6 +9,7 @@ import Foundation
 import RegexBuilder
 import OSLog
 import JVScripting
+import JVSwiftCore
 
 public class Pinger{
 		

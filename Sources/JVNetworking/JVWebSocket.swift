@@ -5,6 +5,7 @@
 //  Created by Jan Verrept on 28/02/2020.
 //
 import Foundation
+import JVSwiftCore
 
 @available(OSX 10.15, *)
 public protocol WebSocketDelegate{

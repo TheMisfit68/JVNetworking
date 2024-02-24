@@ -7,7 +7,7 @@
 
 import Network
 import Foundation
-
+import JVSwiftCore
 
 /// Very basic implementation of class capable fo receiving REST-commands
 /// Uses HTTP instead fo HTTPS and only basic authentication

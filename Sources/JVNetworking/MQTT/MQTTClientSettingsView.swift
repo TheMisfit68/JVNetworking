@@ -7,10 +7,9 @@
 
 import SwiftUI
 import RegexBuilder
-import JVSwiftCore
 import JVSecurity
 import JVUI
-
+import JVSwiftCore
 
 public struct MQTTClientSettingsView:View, SettingsView, Securable{
 	

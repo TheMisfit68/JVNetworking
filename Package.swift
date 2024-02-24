@@ -14,9 +14,10 @@ let package = Package(
 	],
 	// Dependencies declare other packages that this package depends on.
 	dependencies: [
-		.package(url: "https://github.com/TheMisfit68/JVSecurity.git", branch: "master"),
-		.package(url: "https://github.com/TheMisfit68/JVScripting.git", branch: "master"),
-		.package(url: "https://github.com/TheMisfit68/JVSwiftCore.git", branch: "master"),
+		.package(url: "https://github.com/TheMisfit68/JVSecurity.git", branch: "main"),
+		.package(url: "https://github.com/TheMisfit68/JVScripting.git", branch: "main"),
+		.package(url: "https://github.com/TheMisfit68/JVUI.git", branch: "main"),
+		.package(url: "https://github.com/TheMisfit68/JVSwiftCore.git", branch: "main"),
 		.package(url: "https://github.com/emqx/CocoaMQTT.git", branch: "master"),
 	],
 	targets: [
@@ -24,7 +25,12 @@ let package = Package(
 		// Targets can depend on other targets in this package and products from dependencies.
 		.target(
 			name: "JVNetworking",
-			dependencies: ["JVSecurity","JVScripting","JVSwiftCore","CocoaMQTT"],
+			dependencies: [
+				"JVSecurity",
+				"JVScripting",
+				"JVUI",
+				"JVSwiftCore",
+				"CocoaMQTT"],
 			swiftSettings: [.enableUpcomingFeature("BareSlashRegexLiterals")]
 		),
 		.testTarget(

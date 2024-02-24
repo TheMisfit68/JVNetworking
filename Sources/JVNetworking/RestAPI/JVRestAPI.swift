@@ -131,7 +131,7 @@ public class RestAPI{
 		}
 		
 		if logRespons{
-			logger.debug("⤵️\t[\(RestAPI.Method.GET.rawValue)] Data received for \(command.stringValue, privacy: .public)\n\(data.customDescription))")
+			logger.debug("⤵️\t[\(RestAPI.Method.POST.rawValue)] Data received for \(command.stringValue, privacy: .public)\n\(data.customDescription))")
 		}
 		
 		return data

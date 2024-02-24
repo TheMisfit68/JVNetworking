@@ -8,14 +8,15 @@
 import Foundation
 import CocoaMQTT
 import OSLog
-import JVSwiftCore
 import JVSecurity
+import JVSwiftCore
+
 
 /// Wrapper around CocoaMQTT
 /// Uses the serverCredentials from the keychain to setup the connection
 open class MQTTClient: Configurable, Securable {
-	
 	private let logger = Logger(subsystem: "be.oneclick.jan.JVNetworking", category: "MQTTClient") // Create an OSLog object
+	
 	public var notificationKey: String = "MQTTClientSettingsChanged"
 	
 	private let autoSubscriptions:[String]?
@@ -80,7 +81,7 @@ open class MQTTClient: Configurable, Securable {
 	
 	// MARK: - Publishing
 	public func publish<T: Encodable>(topic: String, type jsonEncodableType: T, qos: CocoaMQTTQoS = .qos1, retained: Bool = false) {
-		if let jsonPayloadString = generateJSONPayload(from: jsonEncodableType) {
+		if let jsonPayloadString = jsonEncodableType.stringValue {
 			publish(topic:topic, message: jsonPayloadString, qos: qos, retained: retained)
 		}
 	}
@@ -105,19 +106,6 @@ open class MQTTClient: Configurable, Securable {
 		logger.info("👂\tSubscribing to topic: \(topic)")
 		mqtt.subscribe(topic)
 	}
-	
-	
-	// MARK: - JSON support
-	func generateJSONPayload<T: Encodable>(from jsonEncodableType: T) -> String? {
-		do {
-			let jsonData = try JSONEncoder().encode(jsonEncodableType)
-			return String(data: jsonData, encoding: .utf8)
-		} catch {
-			logger.error("Unable to generate JSON Payload from Type")
-			return nil
-		}
-	}
-	
 	
 }
 
