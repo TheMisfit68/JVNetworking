@@ -1,0 +1,68 @@
+{
+  "pins" : [
+    {
+      "identity" : "cocoamqtt",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/emqx/CocoaMQTT.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "ff7c07b8a212e2e724d93a91d165a899df546db0"
+      }
+    },
+    {
+      "identity" : "jvscripting",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/TheMisfit68/JVScripting.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "6c7300f429327525f38ac7f9ebeab2b74d3870b2"
+      }
+    },
+    {
+      "identity" : "jvsecurity",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/TheMisfit68/JVSecurity.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a8ca7776d40dbf9f029d2a329c4ec29a92a4139a"
+      }
+    },
+    {
+      "identity" : "jvswiftcore",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/TheMisfit68/JVSwiftCore.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "5bc0c7fb8851aa47b7589f096da86786585b7295"
+      }
+    },
+    {
+      "identity" : "jvui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/TheMisfit68/JVUI.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "50dac687473736eb25ea0b3becef8be2aee66f23"
+      }
+    },
+    {
+      "identity" : "mqttcocoaasyncsocket",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/leeway1208/MqttCocoaAsyncSocket",
+      "state" : {
+        "revision" : "ce3e18607fd01079495f86ff6195d8a3ca469f73",
+        "version" : "1.0.8"
+      }
+    },
+    {
+      "identity" : "starscream",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/daltoniam/Starscream.git",
+      "state" : {
+        "revision" : "df8d82047f6654d8e4b655d1b1525c64e1059d21",
+        "version" : "4.0.4"
+      }
+    }
+  ],
+  "version" : 2
+}

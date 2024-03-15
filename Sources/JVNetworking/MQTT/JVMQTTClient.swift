@@ -26,14 +26,21 @@ open class MQTTClient: Configurable, Securable {
 	private var port:Int
 	private var isConnected:Bool
 	
-	lazy private var mqtt: CocoaMQTT = CocoaMQTT(clientID: clientID, host: "\(self.host)", port: UInt16(self.port))
+	lazy private var mqtt: CocoaMQTT5 = CocoaMQTT5(clientID: clientID, host: "\(self.host)", port: UInt16(self.port))
+	private var connectionProperties: MqttConnectProperties {
+		let connectProperties = MqttConnectProperties()
+		connectProperties.topicAliasMaximum = 0
+		connectProperties.sessionExpiryInterval = 0
+		connectProperties.receiveMaximum = 100
+		connectProperties.maximumPacketSize = 500
+		return connectProperties
+	}
 	
-	
-	public init(autoSubscribeTo autoSubscriptions:[String]? = nil, autoPublishTo autoPublications:[String]? = nil){
+	public init(name clientID:String, autoSubscribeTo autoSubscriptions:[String]? = nil, autoPublishTo autoPublications:[String]? = nil){
 		
 		self.autoSubscriptions = autoSubscriptions
 		self.autoPublications = autoPublications
-		self.clientID = "TheHAPINestServer"
+		self.clientID = clientID
 		self.host = ""
 		self.port = 0
 		self.isConnected = false
@@ -52,13 +59,16 @@ open class MQTTClient: Configurable, Securable {
 			}
 			self.host = host
 			self.port = port
-			
+						
 			mqtt.username = userName
 			mqtt.password = password
+			mqtt.autoReconnect = true
 			mqtt.enableSSL = true
-			mqtt.willMessage = CocoaMQTTMessage(topic: "/will", string: "dieout")
+			mqtt.willMessage = CocoaMQTT5Message(topic: "/will", string: "dieout")
 			mqtt.delegate = self
-			mqtt.keepAlive = 60			
+			mqtt.keepAlive = 60
+
+			mqtt.connectProperties = self.connectionProperties
 		}
 	}
 	
@@ -89,12 +99,12 @@ open class MQTTClient: Configurable, Securable {
 	public func publish(topic:String? = nil, message: String, qos: CocoaMQTTQoS = .qos1, retained: Bool = false) {
 		
 		if let topic = topic{
-			mqtt.publish(topic, withString: message, qos: qos, retained: retained)
+			mqtt.publish(topic, withString: message, qos: qos, retained: retained, properties: MqttPublishProperties())
 			logger.info("🗯️\tPublished message to topic: \(topic)")
 		}else{
 			autoPublications?.forEach {
 				if $0 != topic{
-					mqtt.publish($0, withString: message, qos: qos, retained: retained)
+					mqtt.publish($0, withString: message, qos: qos, retained: retained, properties: MqttPublishProperties())
 					logger.info("🗯️\tPublished message to topic: \($0)")
 				}
 			}
@@ -109,12 +119,11 @@ open class MQTTClient: Configurable, Securable {
 	
 }
 
-extension MQTTClient: CocoaMQTTDelegate {
-	
+extension MQTTClient: CocoaMQTT5Delegate {
 	
 	// Connection and Disconnection-events
-	public func mqtt(_ mqtt: CocoaMQTT, didConnectAck ack: CocoaMQTTConnAck){
-		if ack == .accept{
+	public func mqtt5(_ mqtt5: CocoaMQTT5, didConnectAck ack: CocoaMQTTCONNACKReasonCode, connAckData: MqttDecodeConnAck?) {
+		if ack == .success{
 			self.autoSubscriptions?.forEach {
 				subscribe(topic: $0)
 			}
@@ -122,29 +131,38 @@ extension MQTTClient: CocoaMQTTDelegate {
 		}
 	}
 	
-	public func mqttDidDisconnect(_ mqtt: CocoaMQTT, withError err: Error?) {}
+	public func mqtt5DidDisconnect(_ mqtt5:CocoaMQTT5, withError err: (any Error)?) {}
 	
+	public func mqtt5(_ mqtt5: CocoaMQTT5, didReceiveDisconnectReasonCode reasonCode: CocoaMQTTDISCONNECTReasonCode) {}
+	
+	public func mqtt5(_ mqtt5: CocoaMQTT5, didReceiveAuthReasonCode reasonCode: CocoaMQTTAUTHReasonCode) {}
 	
 	// Subscribe and Receive events
-	public func mqtt(_ mqtt: CocoaMQTT, didSubscribeTopics success: NSDictionary, failed: [String]) {}
+	public func mqtt5(_ mqtt5: CocoaMQTT5, didSubscribeTopics success: NSDictionary, failed: [String], subAckData: MqttDecodeSubAck?) {}
 	
-	public func mqtt(_ mqtt: CocoaMQTT, didUnsubscribeTopics topics: [String]) {}
+	public func mqtt5(_ mqtt5: CocoaMQTT5, didUnsubscribeTopics topics: [String], unsubAckData: MqttDecodeUnsubAck?) {}
 	
-	public func mqtt(_ mqtt: CocoaMQTT, didReceiveMessage message: CocoaMQTTMessage, id: UInt16 ){
+	public func mqtt5(_ mqtt5: CocoaMQTT5, didReceiveMessage message: CocoaMQTT5Message, id: UInt16, publishData: MqttDecodePublish?) {
 		let topic = message.topic
 		let message = String(bytes: message.payload, encoding: .utf8) ?? "Invalid UTF8 data"
 		logger.info("🗯️\tReceived message on \(topic):\n\t\(message)")
 	}
 	
 	
-	// publishing events
-	public func mqtt(_ mqtt: CocoaMQTT, didPublishMessage message: CocoaMQTTMessage, id: UInt16){}
 	
-	public func mqtt(_ mqtt: CocoaMQTT, didPublishAck id: UInt16){}
+	// publishing events
+	public func mqtt5(_ mqtt5: CocoaMQTT5, didPublishMessage message: CocoaMQTT5Message, id: UInt16) {}
+	
+	public func mqtt5(_ mqtt5: CocoaMQTT5, didPublishAck id: UInt16, pubAckData: MqttDecodePubAck?) {}
+	
+	public func mqtt5(_ mqtt5: CocoaMQTT5, didPublishRec id: UInt16, pubRecData: MqttDecodePubRec?) {}
+	
 	
 	// Ping and Pong-events
-	public func mqttDidPing(_ mqtt: CocoaMQTT) {}
 	
-	public func mqttDidReceivePong(_ mqtt: CocoaMQTT) {}
+	public func mqtt5DidPing(_ mqtt5: CocoaMQTT5) {}
+	
+	public func mqtt5DidReceivePong(_ mqtt5: CocoaMQTT5) {}
+	
 	
 }
