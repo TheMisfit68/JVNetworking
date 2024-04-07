@@ -14,8 +14,7 @@ import JVSwiftCore
 
 /// Wrapper around CocoaMQTT
 /// Uses the serverCredentials from the keychain to setup the connection
-open class MQTTClient: Configurable, Securable {
-	private let logger = Logger(subsystem: "be.oneclick.jan.JVNetworking", category: "MQTTClient") // Create an OSLog object
+open class MQTTClient: Configurable, Securable, Loggable {
 	
 	public var notificationKey: String = "MQTTClientSettingsChanged"
 	
@@ -76,16 +75,16 @@ open class MQTTClient: Configurable, Securable {
 		isConnected = mqtt.connect()
 		
 		if isConnected {
-			logger.info("🔗\tConnecting successful")
+			MQTTClient.logger.info("🔗\tConnecting successful")
 		} else {
-			logger.error("❌\tConnecting failed") // Log error level message
+			MQTTClient.logger.error("❌\tConnecting failed") // Log error level message
 		}
 	}
 	
 	public func disconnect(){
 		mqtt.disconnect()
 		isConnected = false
-		logger.info("❌\tDisconnected")
+		MQTTClient.logger.info("❌\tDisconnected")
 	}
 	
 	
@@ -100,12 +99,12 @@ open class MQTTClient: Configurable, Securable {
 		
 		if let topic = topic{
 			mqtt.publish(topic, withString: message, qos: qos, retained: retained, properties: MqttPublishProperties())
-			logger.info("🗯️\tPublished message to topic: \(topic)")
+			MQTTClient.logger.info("🗯️\tPublished message to topic: \(topic)")
 		}else{
 			autoPublications?.forEach {
 				if $0 != topic{
 					mqtt.publish($0, withString: message, qos: qos, retained: retained, properties: MqttPublishProperties())
-					logger.info("🗯️\tPublished message to topic: \($0)")
+					MQTTClient.logger.info("🗯️\tPublished message to topic: \($0)")
 				}
 			}
 		}
@@ -113,7 +112,7 @@ open class MQTTClient: Configurable, Securable {
 	
 	// MARK: - Subscription
 	public func subscribe(topic: String) {
-		logger.info("👂\tSubscribing to topic: \(topic)")
+		MQTTClient.logger.info("👂\tSubscribing to topic: \(topic)")
 		mqtt.subscribe(topic)
 	}
 	
@@ -145,7 +144,7 @@ extension MQTTClient: CocoaMQTT5Delegate {
 	public func mqtt5(_ mqtt5: CocoaMQTT5, didReceiveMessage message: CocoaMQTT5Message, id: UInt16, publishData: MqttDecodePublish?) {
 		let topic = message.topic
 		let message = String(bytes: message.payload, encoding: .utf8) ?? "Invalid UTF8 data"
-		logger.info("🗯️\tReceived message on \(topic):\n\t\(message)")
+		MQTTClient.logger.info("🗯️\tReceived message on \(topic):\n\t\(message)")
 	}
 	
 	

@@ -7,8 +7,7 @@ import OSLog
 import JVSwiftCore
 
 @available(macOS 10.14, *)
-open class UDPClient {
-	let logger = Logger(subsystem: "be.oneclick.JVSwift", category: "JVUDPClient")
+open class UDPClient: Loggable {
 	
 	public let name: String
     public let hostName: String
@@ -34,12 +33,12 @@ open class UDPClient {
 	
 	public func connect() {
 		udpConnection.start(queue: queue)
-        logger.info("UDP-connection made with @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public)")
+		UDPClient.logger.info("UDP-connection made with @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public)")
 	}
 	
 	public func disconnect() {
 		stop(error: nil)
-        logger.info("UDP-connection closed with @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public)")
+		UDPClient.logger.info("UDP-connection closed with @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public)")
 	}
 	
 	public func reconnect() {
@@ -61,7 +60,7 @@ open class UDPClient {
 				return
 			}
 		}))
-        logger.info("Data sent to UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public): \(data as NSData, privacy:.public)")
+		UDPClient.logger.info("Data sent to UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public): \(data as NSData, privacy:.public)")
 	}
 	
 	
@@ -71,7 +70,7 @@ open class UDPClient {
         case .waiting(let error):
             connectionDidFail(error: error)
         case .ready:
-            logger.info("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) ready")
+				UDPClient.logger.info("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) ready")
         case .failed(let error):
             connectionDidFail(error: error)
         default:
@@ -80,13 +79,12 @@ open class UDPClient {
     }
     
 	private func connectionDidFail(error: Error) {
-        logger.error("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) did fail, error: \(error)")
+		UDPClient.logger.error("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) did fail, error: \(error)")
 		self.stop(error: error)
 	}
 	
 	private func connectionDidEnd() {
-        let logger = Logger(subsystem: "be.oneclick.JVSwift", category: "JVUDPClient")
-        logger.info("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) did end")
+		UDPClient.logger.info("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) did end")
 		self.stop(error: nil)
 	}
 	
