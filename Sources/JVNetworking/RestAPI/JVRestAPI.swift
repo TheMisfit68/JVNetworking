@@ -11,9 +11,7 @@ import JVSwiftCore
 
 /// A class to handle REST API requests
 @available(macOS 12.0.0, *)
-public class RestAPI{
-	let logger = Logger(subsystem: "be.oneclick.JVNetworking", category: "JVRestApi")
-	
+public class RestAPI:Loggable{
 	
 	public enum Method:String {
 		case GET
@@ -57,7 +55,7 @@ public class RestAPI{
 			throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to decode data"))
 		}
 		
-		logger.debug(
+		RestAPI.logger.debug(
 """
 ⤵️\t[\(method.rawValue)] Object received for \(command.stringValue, privacy: .public):
 \(decodedObject!.customDescription, privacy: .public)
@@ -84,17 +82,17 @@ public class RestAPI{
 		urlRequest.httpMethod = Method.GET.rawValue
 		urlRequest.timeoutInterval = timeout
 		
-		logger.info("\(urlRequest.customDescription))")
+		RestAPI.logger.info("\(urlRequest.customDescription))")
 		
 		let (data, response) = try await URLSession.shared.data(for: urlRequest)
 		let httpStatusCode = (response as? HTTPURLResponse)?.statusCode ?? 500 // 500 Internal Server Error in case of nil
 		guard (200...299).contains(httpStatusCode) else {
-			logger.debug("❌\t[\(RestAPI.Method.GET.rawValue)] No data received for \(command.stringValue, privacy: .public)")
+			RestAPI.logger.debug("❌\t[\(RestAPI.Method.GET.rawValue)] No data received for \(command.stringValue, privacy: .public)")
 			throw URLError(.badServerResponse)
 		}
 		
 		if logRespons{
-			logger.debug("⤵️\t[\(RestAPI.Method.GET.rawValue)] Data received for \(command.stringValue, privacy: .public)\n\(data.customDescription))")
+			RestAPI.logger.debug("⤵️\t[\(RestAPI.Method.GET.rawValue)] Data received for \(command.stringValue, privacy: .public)\n\(data.customDescription))")
 		}
 		
 		return data
@@ -121,17 +119,17 @@ public class RestAPI{
 			urlRequest.setValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
 		}
 		
-		logger.info("\(urlRequest.customDescription))")
+		RestAPI.logger.info("\(urlRequest.customDescription))")
 		
 		let (data, response) = try await URLSession.shared.data(for: urlRequest)
 		let httpStatusCode = (response as? HTTPURLResponse)?.statusCode ?? 500 // 500 Internal Server Error in case of nil
 		guard (200...299).contains(httpStatusCode) else {
-			logger.debug("❌\t[\(RestAPI.Method.POST.rawValue)] No data received for \(command.stringValue, privacy: .public)")
+			RestAPI.logger.debug("❌\t[\(RestAPI.Method.POST.rawValue)] No data received for \(command.stringValue, privacy: .public)")
 			throw URLError(.badServerResponse)
 		}
 		
 		if logRespons{
-			logger.debug("⤵️\t[\(RestAPI.Method.POST.rawValue)] Data received for \(command.stringValue, privacy: .public)\n\(data.customDescription))")
+			RestAPI.logger.debug("⤵️\t[\(RestAPI.Method.POST.rawValue)] Data received for \(command.stringValue, privacy: .public)\n\(data.customDescription))")
 		}
 		
 		return data

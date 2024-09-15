@@ -11,7 +11,7 @@ import OSLog
 import JVScripting
 import JVSwiftCore
 
-public class Pinger{
+public class Pinger:Loggable{
 		
 	public init(){}
 	
@@ -23,8 +23,7 @@ public class Pinger{
             let pingResult:String = try pingCommand.execute()
             return pingResult
         }catch{
-            let logger = Logger(subsystem: "be.oneclick.JVSwift", category: "Pinger")
-            logger.error("\(error.localizedDescription)")
+			Pinger.logger.error("\(error.localizedDescription)")
             return ""
         }
         
