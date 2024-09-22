@@ -6,7 +6,7 @@
       "location" : "https://github.com/emqx/CocoaMQTT.git",
       "state" : {
         "branch" : "master",
-        "revision" : "ff7c07b8a212e2e724d93a91d165a899df546db0"
+        "revision" : "4abf2d10315dff60661a32f1db5dcc45a9df9f09"
       }
     },
     {
@@ -15,7 +15,7 @@
       "location" : "https://github.com/TheMisfit68/JVScripting.git",
       "state" : {
         "branch" : "main",
-        "revision" : "6c7300f429327525f38ac7f9ebeab2b74d3870b2"
+        "revision" : "dc94ef54c0db26d7503add4ad49ad019f84d0a02"
       }
     },
     {
@@ -24,7 +24,7 @@
       "location" : "https://github.com/TheMisfit68/JVSecurity.git",
       "state" : {
         "branch" : "main",
-        "revision" : "a8ca7776d40dbf9f029d2a329c4ec29a92a4139a"
+        "revision" : "59218b5f77113728d28b6ded2d38f783f00a68e7"
       }
     },
     {
@@ -33,7 +33,7 @@
       "location" : "https://github.com/TheMisfit68/JVSwiftCore.git",
       "state" : {
         "branch" : "main",
-        "revision" : "5bc0c7fb8851aa47b7589f096da86786585b7295"
+        "revision" : "dc1abd4d514b266b30f2027d25f098c9295aba33"
       }
     },
     {
@@ -42,7 +42,7 @@
       "location" : "https://github.com/TheMisfit68/JVUI.git",
       "state" : {
         "branch" : "main",
-        "revision" : "50dac687473736eb25ea0b3becef8be2aee66f23"
+        "revision" : "a25e045021ca04d7fd4532c15083c96e9b1110bf"
       }
     },
     {
@@ -59,8 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/daltoniam/Starscream.git",
       "state" : {
-        "revision" : "df8d82047f6654d8e4b655d1b1525c64e1059d21",
-        "version" : "4.0.4"
+        "revision" : "c6bfd1af48efcc9a9ad203665db12375ba6b145a",
+        "version" : "4.0.8"
       }
     }
   ],
