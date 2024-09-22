@@ -37,8 +37,7 @@ import JVSwiftCore
 ///
 /// - Important: Ensure your platform supports `NWConnection` (macOS 10.14+).
 @available(macOS 10.14, *)
-actor UDPClientAsync {
-	let logger = Logger(subsystem: "be.oneclick.JVSwift", category: "JVUDPClient")
+actor UDPClientAsync: Loggable {
 	
 	/// The name of the client.
 	public let name: String
@@ -86,7 +85,7 @@ actor UDPClientAsync {
 	/// - Note: The connection state will be logged upon success.
 	public func connect() async throws {
 		try await startConnection()
-		logger.info("UDP-connection made with @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public)")
+		UDPClientAsync.logger.info("UDP-connection made with @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public)")
 	}
 	
 	/// Terminates the UDP connection.
@@ -94,7 +93,7 @@ actor UDPClientAsync {
 	/// - Note: The disconnection event will be logged.
 	public func disconnect() {
 		stopConnection()
-		logger.info("UDP-connection closed with @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public)")
+		UDPClientAsync.logger.info("UDP-connection closed with @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public)")
 	}
 	
 	/// Reconnects the UDP client by disconnecting and reconnecting.
@@ -140,7 +139,7 @@ actor UDPClientAsync {
 				if let error = error {
 					continuation.resume(throwing: error)
 				} else {
-					self.logger.info("Data sent to UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public): \(data as NSData, privacy:.public)")
+					UDPClientAsync.logger.info("Data sent to UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public): \(data as NSData, privacy:.public)")
 					continuation.resume()
 				}
 			})
@@ -157,7 +156,7 @@ actor UDPClientAsync {
 				if let error = error {
 					continuation.resume(throwing: error)
 				} else if let data = data {
-					self.logger.info("Data received from UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public): \(data as NSData, privacy:.public)")
+					UDPClientAsync.logger.info("Data received from UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public): \(data as NSData, privacy:.public)")
 					continuation.resume(returning: (data, context, isComplete))
 				} else {
 					continuation.resume(throwing: UDPClientError.noDataReceived)
@@ -198,11 +197,11 @@ actor UDPClientAsync {
 	private func connectionStateChanged(to state: NWConnection.State) {
 		switch state {
 			case .waiting(let error):
-				logger.error("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) waiting with error: \(error.localizedDescription)")
+				UDPClientAsync.logger.error("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) waiting with error: \(error.localizedDescription)")
 			case .ready:
-				logger.info("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) ready")
+				UDPClientAsync.logger.info("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) ready")
 			case .failed(let error):
-				logger.error("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) did fail with error: \(error.localizedDescription)")
+				UDPClientAsync.logger.error("UDP-connection @IP \(self.hostName, privacy: .public): \(self.portName, privacy: .public) did fail with error: \(error.localizedDescription)")
 				stopConnection()
 			default:
 				break
