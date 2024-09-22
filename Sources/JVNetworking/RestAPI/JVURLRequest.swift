@@ -8,7 +8,7 @@
 import Foundation
 import JVSwiftCore
 
-extension URLRequest:CustomDescriptible {}
+extension URLRequest:@retroactive CustomDescriptible {}
 
 /// Allow URLrequest to be described in a custom way for debugging purposes
 public extension CustomDescriptible where Self == URLRequest{
