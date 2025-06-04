@@ -18,7 +18,7 @@ let package = Package(
 		.package(url: "https://github.com/TheMisfit68/JVScripting.git", branch: "main"),
 		.package(url: "https://github.com/TheMisfit68/JVUI.git", branch: "main"),
 		.package(url: "https://github.com/TheMisfit68/JVSwiftCore.git", branch: "main"),
-		.package(url: "https://github.com/emqx/CocoaMQTT.git", branch: "master"),
+		.package(url: "https://github.com/swift-server-community/mqtt-nio.git", branch: "main"),
 	],
 	targets: [
 		// Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -30,7 +30,8 @@ let package = Package(
 				"JVScripting",
 				"JVUI",
 				"JVSwiftCore",
-				"CocoaMQTT"],
+				.product(name: "MQTTNIO", package: "mqtt-nio"),
+			],
 			swiftSettings: [.enableUpcomingFeature("BareSlashRegexLiterals")]
 		),
 		.testTarget(
